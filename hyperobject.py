@@ -331,14 +331,9 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
                        for model_name, color in zip(model_names, colors)]
     ax.legend(handles=legend_elements, loc='upper right')
     
-    # Save the figure
-    fig_path = os.path.join(logs_dir, "hyperobject_heatmap.png")
-    plt.savefig(fig_path, dpi=300, bbox_inches='tight')
-    
-    logger.info(f"Heatmap saved to {fig_path}")
-
-    # Display the heatmap in a separate window
-    plt.show()
+    fig.tight_layout()
+    plt.draw()
+    plt.pause(0.001)
 
 
 def main(args=None):
