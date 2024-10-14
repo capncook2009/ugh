@@ -299,9 +299,9 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
             intensity = np.log1p(intensity)
             intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
             
-            for i in range(3):  # Subtract color channel from white
+            for i in range(3):
                 if color[i] == 1:  # Only modify the channel corresponding to this model's color
-                    heatmap[:,:,i] -= intensity.T
+                    heatmap[:,:,i] = 1 - intensity.T  # Invert the intensity
 
     # Ensure the heatmap values are in the correct range
     heatmap = np.clip(heatmap, 0, 1)
