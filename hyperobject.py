@@ -173,7 +173,7 @@ def generate_and_compute_metrics(
     # Cache the result
     generation_cache[key] = metrics
     cache_writes += 1
-    if cache_writes % 10 == 0:
+    if cache_writes % 2 == 0:
         save_cache()
 
     current_seed += 1
