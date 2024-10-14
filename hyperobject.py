@@ -6,6 +6,10 @@ import os
 import pickle
 import hashlib
 from typing import List, Dict, Tuple, Any
+
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageTk
@@ -301,7 +305,7 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
-    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 0)]
+    colors = [(0.5, 0.5, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0, 0.5), (0, 0.5, 0.5)]
 
     # Set fixed ranges for X and Y axes
     x_range = (0, 4)
@@ -348,7 +352,9 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
             ax_model.set_title(f"Hyperobject Heatmap - {model_name}")
             fig_model.colorbar(im_model)
             fig_model.tight_layout()
-            plt.savefig(f'hyperobject_{model_name}.png')
+            # replace slashes in model name for saving
+            model_name_s = model_name.replace("/", "_")
+            plt.savefig(f'hyperobject_{model_name_s}.png')
             plt.close(fig_model)
 
     # Ensure the heatmap values are in the correct range
