@@ -294,7 +294,7 @@ def update_plot(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
 
 def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
     ax.clear()
-    width, height = 250, 150  # Reduced to account for 2x2 pixels
+    width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
@@ -356,11 +356,11 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     # Ensure the heatmap values are in the correct range
     heatmap = np.clip(heatmap, 0, 1)
 
-    # Display the heatmap with colors and 2x2 pixels
+    # Display the heatmap with colors and 1x1 pixels
     im = ax.imshow(heatmap, aspect='auto', 
                    extent=[min_entropy, max_entropy, 
                            min_norm_varentropy, max_norm_varentropy],
-                   interpolation='nearest', origin='lower')  # This ensures sharp 2x2 pixels
+                   interpolation='nearest', origin='lower')
     
     # Set labels and title
     ax.set_xlabel("Entropy")
