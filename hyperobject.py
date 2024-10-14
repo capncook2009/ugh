@@ -264,7 +264,36 @@ def save_results(metrics_by_model: Dict[str, List[Dict[str, Any]]], logs_dir: st
     logger.info(f"CSV results for batch {batch_num} saved to {csv_file_path}")
 
 
-def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir: str):
+def update_plot(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
+    ax.clear()
+    for model_name, metrics in metrics_by_model.items():
+        entropies = []
+        normalized_varentropies = []
+        for m in metrics:
+            try:
+                e, v = float(m["entropy"]), float(m["varentropy"])
+                if not (math.isnan(e) or math.isinf(e) or math.isnan(v) or math.isinf(v)) and e != 0:
+                    entropies.append(e)
+                    print(e, v)
+                    normalized_varentropies.append(math.log(e / math.sqrt(v)))
+            except (ValueError, TypeError):
+                pass
+
+        if entropies and normalized_varentropies:
+            ax.scatter(entropies, normalized_varentropies, label=model_name, alpha=0.7)
+
+    ax.set_xlabel("Entropy")
+    ax.set_ylabel("log(Entropy/sqrt(Varentropy))")
+    ax.set_title("Hyperobject")
+    ax.legend()
+    ax.grid(True, linestyle='--', alpha=0.7)
+    fig.tight_layout()
+    plt.draw()
+    plt.pause(0.001)
+
+
+def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
+    ax.clear()
     width, height = 250, 150  # Reduced to account for 2x2 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
@@ -310,15 +339,12 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
 
     # Ensure the heatmap values are in the correct range
     heatmap = np.clip(heatmap, 0, 1)
-    
-    # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(12, 8))
-    
+
     # Display the heatmap with colors and 2x2 pixels
     im = ax.imshow(heatmap, aspect='auto', 
                    extent=[min(all_entropies), max(all_entropies), 
                            min(all_normalized_varentropies), max(all_normalized_varentropies)],
-                   interpolation='nearest')  # This ensures sharp 2x2 pixels
+                   interpolation='nearest', origin='lower')  # This ensures sharp 2x2 pixels
     
     # Set labels and title
     ax.set_xlabel("Entropy")
@@ -359,6 +385,9 @@ def main(args=None):
 
     metrics_by_model = {model_name: [] for model_name in model_names}
 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    plt.ion()
+
     for batch_num, i in enumerate(range(0, len(prompts), args.batch_size)):
         batch_prompts = prompts[i:i + args.batch_size]
 
@@ -376,10 +405,10 @@ def main(args=None):
         save_results(metrics_by_model, args.logs_dir, batch_num)
         
         # Create and display the heatmap after each batch
-        create_heatmap(metrics_by_model, args.logs_dir)
+        update_heatmap(metrics_by_model, fig, ax)
 
     # Final heatmap creation after processing all batches
-    create_heatmap(metrics_by_model, args.logs_dir)
+    update_heatmap(metrics_by_model, fig, ax)
 
 
 if __name__ == "__main__":
