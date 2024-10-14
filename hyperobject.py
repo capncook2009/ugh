@@ -7,6 +7,8 @@ import pickle
 import hashlib
 from typing import List, Dict, Tuple, Any
 import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
 import torch
 from torch.nn import functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -261,9 +263,14 @@ def save_results(metrics_by_model: Dict[str, List[Dict[str, Any]]], logs_dir: st
     logger.info(f"CSV results for batch {batch_num} saved to {csv_file_path}")
 
 
-def update_plot(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
-    ax.clear()
-    for model_name, metrics in metrics_by_model.items():
+def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir: str):
+    width, height = 1000, 600
+    heatmap = np.zeros((height, width, 3), dtype=np.float32)
+
+    model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
+    
+    for i, model_name in enumerate(model_names):
+        metrics = metrics_by_model[model_name]
         entropies = []
         normalized_varentropies = []
         for m in metrics:
@@ -271,22 +278,42 @@ def update_plot(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax):
                 e, v = float(m["entropy"]), float(m["varentropy"])
                 if not (math.isnan(e) or math.isinf(e) or math.isnan(v) or math.isinf(v)) and e != 0:
                     entropies.append(e)
-                    print(e, v)
                     normalized_varentropies.append(math.log(e / math.sqrt(v)))
             except (ValueError, TypeError):
                 pass
 
         if entropies and normalized_varentropies:
-            ax.scatter(entropies, normalized_varentropies, label=model_name, alpha=0.7)
+            x = np.array(entropies)
+            y = np.array(normalized_varentropies)
+            
+            # Normalize x and y to fit within the image dimensions
+            x_norm = ((x - x.min()) / (x.max() - x.min()) * (width - 1)).astype(int)
+            y_norm = ((y - y.min()) / (y.max() - y.min()) * (height - 1)).astype(int)
+            
+            # Use log scale for intensity
+            intensity = np.log1p(np.histogram2d(y_norm, x_norm, bins=(height, width))[0])
+            intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
+            
+            heatmap[:,:,i] = intensity
 
-    ax.set_xlabel("Entropy")
-    ax.set_ylabel("log(Entropy/sqrt(Varentropy))")
-    ax.set_title("Hyperobject")
-    ax.legend()
-    ax.grid(True, linestyle='--', alpha=0.7)
-    fig.tight_layout()
-    plt.draw()
-    plt.pause(0.001)
+    # Normalize and convert to 8-bit format
+    heatmap = (heatmap * 255).astype(np.uint8)
+    
+    # Create and save the image
+    img = Image.fromarray(heatmap)
+    img_path = os.path.join(logs_dir, "hyperobject_heatmap.png")
+    img.save(img_path)
+    
+    logger.info(f"Heatmap saved to {img_path}")
+
+    # Display the heatmap
+    plt.figure(figsize=(12, 8))
+    plt.imshow(heatmap)
+    plt.title("Hyperobject Heatmap")
+    plt.xlabel("Entropy")
+    plt.ylabel("log(Entropy/sqrt(Varentropy))")
+    plt.colorbar(label="Log Intensity")
+    plt.show()
 
 
 def main(args=None):
@@ -312,9 +339,6 @@ def main(args=None):
 
     metrics_by_model = {model_name: [] for model_name in model_names}
 
-    fig, ax = plt.subplots(figsize=(12, 8))
-    plt.ion()
-
     for batch_num, i in enumerate(range(0, len(prompts), args.batch_size)):
         batch_prompts = prompts[i:i + args.batch_size]
 
@@ -329,12 +353,10 @@ def main(args=None):
 
             print_debug_info(metrics_by_model)
 
-            update_plot(metrics_by_model, fig, ax)
-
         save_results(metrics_by_model, args.logs_dir, batch_num)
 
-    plt.ioff()
-    plt.show()
+    # Create the heatmap after processing all batches
+    create_heatmap(metrics_by_model, args.logs_dir)
 
 
 if __name__ == "__main__":
