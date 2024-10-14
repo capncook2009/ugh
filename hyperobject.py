@@ -8,8 +8,9 @@ import hashlib
 from typing import List, Dict, Tuple, Any
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageTk
 import torch
+import tkinter as tk
 from torch.nn import functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
@@ -306,14 +307,22 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
     
     logger.info(f"Heatmap saved to {img_path}")
 
-    # Display the heatmap
-    plt.figure(figsize=(12, 8))
-    plt.imshow(heatmap)
-    plt.title("Hyperobject Heatmap")
-    plt.xlabel("Entropy")
-    plt.ylabel("log(Entropy/sqrt(Varentropy))")
-    plt.colorbar(label="Log Intensity")
-    plt.show()
+    # Display the heatmap in a separate window
+    root = tk.Tk()
+    root.title("Hyperobject Heatmap")
+    
+    # Open the image
+    img = Image.open(img_path)
+    
+    # Convert the image for tkinter
+    tk_img = ImageTk.PhotoImage(img)
+    
+    # Create a label and add the image
+    label = tk.Label(root, image=tk_img)
+    label.pack()
+
+    # Start the GUI event loop
+    root.mainloop()
 
 
 def main(args=None):
