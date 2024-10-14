@@ -266,7 +266,7 @@ def save_results(metrics_by_model: Dict[str, List[Dict[str, Any]]], logs_dir: st
 
 def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir: str):
     width, height = 250, 150  # Reduced to account for 2x2 pixels
-    heatmap = np.zeros((height, width, 3), dtype=np.float32)  # Start with black
+    heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
     colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]  # Red, Green, Blue for each model
@@ -299,16 +299,14 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
             intensity = np.log1p(intensity)
             intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
             
-            # Add the color layer
-            color_layer = np.zeros((height, width, 3), dtype=np.float32)
+            # Create color layer (white to color)
+            color_layer = np.ones((height, width, 3), dtype=np.float32)
             for i in range(3):
-                color_layer[:,:,i] = color[i] * intensity.T
+                if color[i] == 0:
+                    color_layer[:,:,i] = 1 - intensity.T
             
             # Combine with existing heatmap
-            heatmap = np.maximum(heatmap, color_layer)
-
-    # Convert to white background
-    heatmap = 1 - heatmap
+            heatmap *= color_layer
 
     # Ensure the heatmap values are in the correct range
     heatmap = np.clip(heatmap, 0, 1)
