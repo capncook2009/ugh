@@ -31,10 +31,11 @@ logger = logging.getLogger(__name__)
 # Global cache dictionary
 generation_cache = {}
 cache_writes = 0
-model_seeds = {model: 0 for model in ["HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B"]}
+#"HuggingFaceTB/SmolLM-360M",
+model_names = ["meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B", "meta-llama/Llama-3.2-11B-Vision"]
+model_seeds = {model: 0 for model in model_names}
 
 #"gpt2", "HuggingFaceTB/SmolLM-135M",
-model_names = ["HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B"]
 
 def save_cache():
     with open('generation_cache.pkl', 'wb') as f:
