@@ -265,7 +265,7 @@ def save_results(metrics_by_model: Dict[str, List[Dict[str, Any]]], logs_dir: st
 
 
 def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir: str):
-    width, height = 1000, 600
+    width, height = 500, 300  # Reduced by half to account for 2x2 pixels
     heatmap = np.zeros((height, width), dtype=np.float32)
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
@@ -304,10 +304,11 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
     # Create a figure and axis
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Display the heatmap with a white-to-black color scheme
+    # Display the heatmap with a white-to-black color scheme and 2x2 pixels
     im = ax.imshow(heatmap, cmap='Greys', aspect='auto', 
                    extent=[min(all_entropies), max(all_entropies), 
-                           min(all_normalized_varentropies), max(all_normalized_varentropies)])
+                           min(all_normalized_varentropies), max(all_normalized_varentropies)],
+                   interpolation='nearest')  # This ensures sharp 2x2 pixels
     
     # Set labels and title
     ax.set_xlabel("Entropy")
