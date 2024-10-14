@@ -363,8 +363,11 @@ def main(args=None):
             print_debug_info(metrics_by_model)
 
         save_results(metrics_by_model, args.logs_dir, batch_num)
+        
+        # Create and display the heatmap after each batch
+        create_heatmap(metrics_by_model, args.logs_dir)
 
-    # Create the heatmap after processing all batches
+    # Final heatmap creation after processing all batches
     create_heatmap(metrics_by_model, args.logs_dir)
 
 
