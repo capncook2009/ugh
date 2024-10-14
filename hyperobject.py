@@ -303,6 +303,23 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     all_entropies = []
     all_normalized_varentropies = []
 
+    # First pass: collect all data points
+    for model_name in model_names:
+        metrics = metrics_by_model[model_name]
+        for m in metrics:
+            try:
+                e, v = float(m["entropy"]), float(m["varentropy"])
+                if not (math.isnan(e) or math.isinf(e) or math.isnan(v) or math.isinf(v)) and e != 0:
+                    all_entropies.append(e)
+                    all_normalized_varentropies.append(math.log(e / math.sqrt(v)))
+            except (ValueError, TypeError):
+                pass
+
+    # Calculate overall min and max
+    min_entropy, max_entropy = min(all_entropies), max(all_entropies)
+    min_norm_varentropy, max_norm_varentropy = min(all_normalized_varentropies), max(all_normalized_varentropies)
+
+    # Second pass: create heatmap
     for model_name, color in zip(model_names, colors):
         metrics = metrics_by_model[model_name]
         entropies = []
@@ -316,15 +333,14 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
             except (ValueError, TypeError):
                 pass
 
-        all_entropies.extend(entropies)
-        all_normalized_varentropies.extend(normalized_varentropies)
-
         if entropies and normalized_varentropies:
             x = np.array(entropies)
             y = np.array(normalized_varentropies)
             
             # Use log scale for intensity
-            intensity, _, _ = np.histogram2d(x, y, bins=(width, height))
+            intensity, _, _ = np.histogram2d(x, y, bins=(width, height), 
+                                             range=[[min_entropy, max_entropy], 
+                                                    [min_norm_varentropy, max_norm_varentropy]])
             intensity = np.log1p(intensity)
             intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
             
@@ -342,8 +358,8 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
 
     # Display the heatmap with colors and 2x2 pixels
     im = ax.imshow(heatmap, aspect='auto', 
-                   extent=[min(all_entropies), max(all_entropies), 
-                           min(all_normalized_varentropies), max(all_normalized_varentropies)],
+                   extent=[min_entropy, max_entropy, 
+                           min_norm_varentropy, max_norm_varentropy],
                    interpolation='nearest', origin='lower')  # This ensures sharp 2x2 pixels
     
     # Set labels and title
