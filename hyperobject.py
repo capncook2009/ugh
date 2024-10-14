@@ -33,6 +33,9 @@ generation_cache = {}
 cache_writes = 0
 current_seed = 0
 
+#"gpt2", "HuggingFaceTB/SmolLM-135M",
+model_names = ["HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B"]
+
 def save_cache():
     with open('generation_cache.pkl', 'wb') as f:
         pickle.dump(generation_cache, f)
@@ -150,7 +153,7 @@ def generate_and_compute_metrics(
         logger.info(f"Step {step}: entropy shape: {entropy.shape}, varentropy shape: {varentropy.shape}")
 
         valid_indices = ~(
-                    torch.isnan(entropy) | torch.isinf(entropy) | torch.isnan(varentropy) | torch.isinf(varentropy))
+                torch.isnan(entropy) | torch.isinf(entropy) | torch.isnan(varentropy) | torch.isinf(varentropy))
         entropy = entropy[valid_indices]
         varentropy = varentropy[valid_indices]
         if entropy.numel() > 0 and varentropy.numel() > 0:
@@ -297,9 +300,10 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
-    model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-11B-Vision"]
-    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]  # Red, Green, Blue, Yellow for each model
-    
+
+    #model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-11B-Vision"]
+    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1)]  # Red, Green, Blue, Yellow for each model
+
     all_entropies = []
     all_normalized_varentropies = []
 
@@ -336,20 +340,20 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
         if entropies and normalized_varentropies:
             x = np.array(entropies)
             y = np.array(normalized_varentropies)
-            
+
             # Use log scale for intensity
-            intensity, _, _ = np.histogram2d(x, y, bins=(width, height), 
-                                             range=[[min_entropy, max_entropy], 
+            intensity, _, _ = np.histogram2d(x, y, bins=(width, height),
+                                             range=[[min_entropy, max_entropy],
                                                     [min_norm_varentropy, max_norm_varentropy]])
             intensity = np.log1p(intensity)
             intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
-            
+
             # Create color layer (white to color)
             color_layer = np.ones((height, width, 3), dtype=np.float32)
             for i in range(3):
                 if color[i] == 0:
                     color_layer[:,:,i] = 1 - intensity.T
-            
+
             # Combine with existing heatmap
             heatmap *= color_layer
 
@@ -357,23 +361,26 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     heatmap = np.clip(heatmap, 0, 1)
 
     # Display the heatmap with colors and 1x1 pixels
-    im = ax.imshow(heatmap, aspect='auto', 
-                   extent=[min_entropy, max_entropy, 
+    im = ax.imshow(heatmap, aspect='auto',
+                   extent=[min_entropy, max_entropy,
                            min_norm_varentropy, max_norm_varentropy],
                    interpolation='nearest', origin='lower')
-    
+
     # Set labels and title
     ax.set_xlabel("Entropy")
     ax.set_ylabel("Normalized Varentropy")
     ax.set_title("Hyperobject Heatmap")
-    
+
     # Add legend
-    legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=model_name, 
-                       markerfacecolor=color, markersize=10)
+    legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=model_name,
+                                  markerfacecolor=color, markersize=10)
                        for model_name, color in zip(model_names, colors)]
     ax.legend(handles=legend_elements, loc='upper right')
-    
+
+    # save to file
     fig.tight_layout()
+    plt.savefig('hyperobject.png')
+
     plt.draw()
     plt.pause(0.001)
 
@@ -393,7 +400,6 @@ def main(args=None):
     # Load the cache at startup
     load_cache()
 
-    model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-11B-Vision"]
 
     models_and_tokenizers = load_models_and_tokenizers(model_names, args.cache_dir)
 
@@ -419,7 +425,7 @@ def main(args=None):
             print_debug_info(metrics_by_model)
 
         save_results(metrics_by_model, args.logs_dir, batch_num)
-        
+
         # Create and display the heatmap after each batch
         update_heatmap(metrics_by_model, fig, ax)
 
