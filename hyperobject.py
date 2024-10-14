@@ -270,6 +270,9 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
     
+    all_entropies = []
+    all_normalized_varentropies = []
+
     for i, model_name in enumerate(model_names):
         metrics = metrics_by_model[model_name]
         entropies = []
@@ -283,46 +286,50 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
             except (ValueError, TypeError):
                 pass
 
+        all_entropies.extend(entropies)
+        all_normalized_varentropies.extend(normalized_varentropies)
+
         if entropies and normalized_varentropies:
             x = np.array(entropies)
             y = np.array(normalized_varentropies)
             
-            # Normalize x and y to fit within the image dimensions
-            x_norm = ((x - x.min()) / (x.max() - x.min()) * (width - 1)).astype(int)
-            y_norm = ((y - y.min()) / (y.max() - y.min()) * (height - 1)).astype(int)
-            
             # Use log scale for intensity
-            intensity = np.log1p(np.histogram2d(y_norm, x_norm, bins=(height, width))[0])
+            intensity, _, _ = np.histogram2d(x, y, bins=(width, height))
+            intensity = np.log1p(intensity)
             intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
             
-            heatmap[:,:,i] = intensity
+            heatmap[:,:,i] = intensity.T
 
     # Normalize and convert to 8-bit format
     heatmap = (heatmap * 255).astype(np.uint8)
     
-    # Create and save the image
+    # Create the image
     img = Image.fromarray(heatmap)
-    img_path = os.path.join(logs_dir, "hyperobject_heatmap.png")
-    img.save(img_path)
     
-    logger.info(f"Heatmap saved to {img_path}")
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Display the image
+    ax.imshow(img, aspect='auto', extent=[min(all_entropies), max(all_entropies), 
+                                          min(all_normalized_varentropies), max(all_normalized_varentropies)])
+    
+    # Set labels and title
+    ax.set_xlabel("Entropy")
+    ax.set_ylabel("Normalized Varentropy")
+    ax.set_title("Hyperobject Heatmap")
+    
+    # Add colorbar
+    plt.colorbar(ax.imshow(img, aspect='auto', extent=[min(all_entropies), max(all_entropies), 
+                                                       min(all_normalized_varentropies), max(all_normalized_varentropies)]))
+    
+    # Save the figure
+    fig_path = os.path.join(logs_dir, "hyperobject_heatmap.png")
+    plt.savefig(fig_path)
+    
+    logger.info(f"Heatmap saved to {fig_path}")
 
     # Display the heatmap in a separate window
-    root = tk.Tk()
-    root.title("Hyperobject Heatmap")
-    
-    # Open the image
-    img = Image.open(img_path)
-    
-    # Convert the image for tkinter
-    tk_img = ImageTk.PhotoImage(img)
-    
-    # Create a label and add the image
-    label = tk.Label(root, image=tk_img)
-    label.pack()
-
-    # Start the GUI event loop
-    root.mainloop()
+    plt.show()
 
 
 def main(args=None):
