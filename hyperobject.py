@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Global cache dictionary
 generation_cache = {}
 cache_writes = 0
-current_seed = 0
+model_seeds = {model: 0 for model in ["HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B"]}
 
 #"gpt2", "HuggingFaceTB/SmolLM-135M",
 model_names = ["HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B"]
@@ -109,14 +109,14 @@ def generate_and_compute_metrics(
         step_size: int,
         model_name: str
 ) -> List[Dict[str, Any]]:
-    global generation_cache, cache_writes, current_seed
+    global generation_cache, cache_writes, model_seeds
 
     # Create a unique key for this generation
-    key = hashlib.md5(f"{prompt}_{model_name}_{current_seed}".encode()).hexdigest()
+    key = hashlib.md5(f"{prompt}_{model_name}_{model_seeds[model_name]}".encode()).hexdigest()
 
     if key in generation_cache:
         logger.info(f"Using cached result for prompt: {prompt[:30]}...")
-        current_seed += 1
+        model_seeds[model_name] += 1
         return generation_cache[key]
 
     metrics = []
@@ -179,7 +179,7 @@ def generate_and_compute_metrics(
     if cache_writes % 2 == 0:
         save_cache()
 
-    current_seed += 1
+    model_seeds[model_name] += 1
     return metrics
 
 
