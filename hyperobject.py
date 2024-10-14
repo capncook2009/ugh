@@ -266,14 +266,14 @@ def save_results(metrics_by_model: Dict[str, List[Dict[str, Any]]], logs_dir: st
 
 def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir: str):
     width, height = 1000, 600
-    heatmap = np.zeros((height, width, 3), dtype=np.float32)
+    heatmap = np.zeros((height, width), dtype=np.float32)
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
     
     all_entropies = []
     all_normalized_varentropies = []
 
-    for i, model_name in enumerate(model_names):
+    for model_name in model_names:
         metrics = metrics_by_model[model_name]
         entropies = []
         normalized_varentropies = []
@@ -296,22 +296,18 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
             # Use log scale for intensity
             intensity, _, _ = np.histogram2d(x, y, bins=(width, height))
             intensity = np.log1p(intensity)
-            intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min())
-            
-            heatmap[:,:,i] = intensity.T
+            heatmap += intensity.T
 
-    # Normalize and convert to 8-bit format
-    heatmap = (heatmap * 255).astype(np.uint8)
-    
-    # Create the image
-    img = Image.fromarray(heatmap)
+    # Normalize the heatmap
+    heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min())
     
     # Create a figure and axis
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Display the image
-    ax.imshow(img, aspect='auto', extent=[min(all_entropies), max(all_entropies), 
-                                          min(all_normalized_varentropies), max(all_normalized_varentropies)])
+    # Display the heatmap with a white-to-black color scheme
+    im = ax.imshow(heatmap, cmap='Greys', aspect='auto', 
+                   extent=[min(all_entropies), max(all_entropies), 
+                           min(all_normalized_varentropies), max(all_normalized_varentropies)])
     
     # Set labels and title
     ax.set_xlabel("Entropy")
@@ -319,12 +315,12 @@ def create_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], logs_dir
     ax.set_title("Hyperobject Heatmap")
     
     # Add colorbar
-    plt.colorbar(ax.imshow(img, aspect='auto', extent=[min(all_entropies), max(all_entropies), 
-                                                       min(all_normalized_varentropies), max(all_normalized_varentropies)]))
+    cbar = plt.colorbar(im)
+    cbar.set_label('Density (log scale)')
     
     # Save the figure
     fig_path = os.path.join(logs_dir, "hyperobject_heatmap.png")
-    plt.savefig(fig_path)
+    plt.savefig(fig_path, dpi=300, bbox_inches='tight')
     
     logger.info(f"Heatmap saved to {fig_path}")
 
