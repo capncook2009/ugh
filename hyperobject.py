@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 generation_cache = {}
 cache_writes = 0
 #"HuggingFaceTB/SmolLM-360M",
-model_names = ["meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B", "meta-llama/Llama-3.2-11B-Vision"]
+model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B", "meta-llama/Llama-3.2-11B-Vision"]
 model_seeds = {model: 0 for model in model_names}
 
 #"gpt2", "HuggingFaceTB/SmolLM-135M",
@@ -301,7 +301,7 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
-    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1)]  # Red, Green, Blue, Magenta, Cyan for each model
+    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 0)]
 
     # Set fixed ranges for X and Y axes
     x_range = (0, 4)
