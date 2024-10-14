@@ -129,8 +129,7 @@ def generate_and_compute_metrics(
                 return_dict_in_generate=True,
                 output_scores=True,
                 pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id,
-                seed=current_seed
+                eos_token_id=tokenizer.eos_token_id
             )
 
         if not outputs.scores:
