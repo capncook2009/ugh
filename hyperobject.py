@@ -339,17 +339,29 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
             # Combine with existing heatmap
             heatmap *= color_layer
 
+            # Save individual heatmap for this model
+            fig_model, ax_model = plt.subplots(figsize=(12, 8))
+            im_model = ax_model.imshow(color_layer, aspect='auto', extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
+                                       interpolation='nearest', origin='lower')
+            ax_model.set_xlabel("Entropy")
+            ax_model.set_ylabel("Normalized Varentropy")
+            ax_model.set_title(f"Hyperobject Heatmap - {model_name}")
+            fig_model.colorbar(im_model)
+            fig_model.tight_layout()
+            plt.savefig(f'hyperobject_{model_name}.png')
+            plt.close(fig_model)
+
     # Ensure the heatmap values are in the correct range
     heatmap = np.clip(heatmap, 0, 1)
 
-    # Display the heatmap with colors and 1x1 pixels
+    # Display the combined heatmap with colors and 1x1 pixels
     im = ax.imshow(heatmap, aspect='auto', extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
                    interpolation='nearest', origin='lower')
 
     # Set labels and title
     ax.set_xlabel("Entropy")
     ax.set_ylabel("Normalized Varentropy")
-    ax.set_title("Hyperobject Heatmap")
+    ax.set_title("Combined Hyperobject Heatmap")
 
     # Add legend
     legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=model_name,
@@ -357,9 +369,9 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
                        for model_name, color in zip(model_names, colors)]
     ax.legend(handles=legend_elements, loc='upper right')
 
-    # save to file
+    # save combined heatmap to file
     fig.tight_layout()
-    plt.savefig('hyperobject.png')
+    plt.savefig('hyperobject_combined.png')
 
     plt.draw()
     plt.pause(0.001)
