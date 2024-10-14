@@ -20,9 +20,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 import math
 
-# from huggingface_hub import login
-# login(token="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")
-
 # check if using GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
