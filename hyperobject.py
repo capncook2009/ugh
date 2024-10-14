@@ -3,6 +3,8 @@ import csv
 import json
 import logging
 import os
+import pickle
+import hashlib
 from typing import List, Dict, Tuple, Any
 import matplotlib.pyplot as plt
 import torch
@@ -23,6 +25,24 @@ prompts_file_path = "prompts.csv"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Global cache dictionary
+generation_cache = {}
+cache_writes = 0
+current_seed = 0
+
+def save_cache():
+    with open('generation_cache.pkl', 'wb') as f:
+        pickle.dump(generation_cache, f)
+    logger.info("Cache saved to generation_cache.pkl")
+
+def load_cache():
+    global generation_cache
+    if os.path.exists('generation_cache.pkl'):
+        with open('generation_cache.pkl', 'rb') as f:
+            generation_cache = pickle.load(f)
+        logger.info("Cache loaded from generation_cache.pkl")
+    else:
+        logger.info("No existing cache found. Starting with an empty cache.")
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate and compare language models.")
@@ -83,6 +103,16 @@ def generate_and_compute_metrics(
         step_size: int,
         model_name: str
 ) -> List[Dict[str, Any]]:
+    global generation_cache, cache_writes, current_seed
+
+    # Create a unique key for this generation
+    key = hashlib.md5(f"{prompt}_{model_name}_{current_seed}".encode()).hexdigest()
+
+    if key in generation_cache:
+        logger.info(f"Using cached result for prompt: {prompt[:30]}...")
+        current_seed += 1
+        return generation_cache[key]
+
     metrics = []
     input_ids = tokenizer.encode(prompt, return_tensors="pt")
     attention_mask = torch.ones_like(input_ids)  # Create attention mask
@@ -99,7 +129,8 @@ def generate_and_compute_metrics(
                 return_dict_in_generate=True,
                 output_scores=True,
                 pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id
+                eos_token_id=tokenizer.eos_token_id,
+                seed=current_seed
             )
 
         if not outputs.scores:
@@ -136,6 +167,14 @@ def generate_and_compute_metrics(
         logger.debug(f"Updated input_ids shape: {input_ids.shape}")
     logger.info(f"Total metrics generated: {len(metrics)}")
     print(f"\nFull generated text:\n{generated_text}")
+
+    # Cache the result
+    generation_cache[key] = metrics
+    cache_writes += 1
+    if cache_writes % 10 == 0:
+        save_cache()
+
+    current_seed += 1
     return metrics
 
 
@@ -262,6 +301,9 @@ def main(args=None):
     with open(config_path, 'w') as f:
         json.dump(vars(args), f, indent=2)
     logger.info(f"Run configuration saved to {config_path}")
+
+    # Load the cache at startup
+    load_cache()
 
     model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
 
