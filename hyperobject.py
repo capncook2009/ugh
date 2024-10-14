@@ -297,8 +297,8 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
-    model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
-    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]  # Red, Green, Blue for each model
+    model_names = ["gpt2", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-11B-Vision"]
+    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]  # Red, Green, Blue, Yellow for each model
     
     all_entropies = []
     all_normalized_varentropies = []
@@ -393,7 +393,7 @@ def main(args=None):
     # Load the cache at startup
     load_cache()
 
-    model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct"]
+    model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-11B-Vision"]
 
     models_and_tokenizers = load_models_and_tokenizers(model_names, args.cache_dir)
 
