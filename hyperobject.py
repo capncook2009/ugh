@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 generation_cache = {}
 cache_writes = 0
 #"HuggingFaceTB/SmolLM-360M",
-model_names = ["gpt2", "HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B", "meta-llama/Llama-3.2-11B-Vision"]
+model_names = ["HuggingFaceTB/SmolLM-135M", "HuggingFaceTB/SmolLM-360M", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B", "meta-llama/Llama-3.2-11B-Vision", "meta-llama/Llama-3.1-70B"]
 model_seeds = {model: 0 for model in model_names}
 
 #"gpt2", "HuggingFaceTB/SmolLM-135M",
@@ -60,25 +60,30 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--step_size", type=int, default=200, help="Number of tokens to generate per step")
     parser.add_argument("--prompts_file", type=str, default=prompts_file_path, help="CSV file containing prompts")
     parser.add_argument("--logs_dir", type=str, default="./logs", help="Directory to save logs and results")
+    parser.add_argument("--disable_gen", type=bool, default=False, help="Turns off loading models and generating prompts")
     return parser.parse_args()
 
 
-def load_models_and_tokenizers(model_names: List[str], cache_dir: str) -> Dict[
+def load_models_and_tokenizers(model_names: List[str], cache_dir: str, disable_gen: bool) -> Dict[
     str, Tuple[AutoModelForCausalLM, AutoTokenizer]]:
     models_and_tokenizers = {}
     for model_name in model_names:
         logger.info(f"Loading model and tokenizer: {model_name}")
-        model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir=cache_dir)
-        tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
+        if not disable_gen:
+            model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir=cache_dir)
+            tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
 
-        if tokenizer.pad_token is None:
-            if tokenizer.eos_token:
-                tokenizer.pad_token = tokenizer.eos_token
-            else:
-                tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        tokenizer.padding_side = 'left'
-        models_and_tokenizers[model_name] = (model, tokenizer)
-        logger.info(f"Successfully loaded model and tokenizer: {model_name}")
+            if tokenizer.pad_token is None:
+                if tokenizer.eos_token:
+                    tokenizer.pad_token = tokenizer.eos_token
+                else:
+                    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            tokenizer.padding_side = 'left'
+            models_and_tokenizers[model_name] = (model, tokenizer)
+            logger.info(f"Successfully loaded model and tokenizer: {model_name}")
+        else:
+            models_and_tokenizers[model_name] = (None, None)
+            logger.info(f"Model and tokenizer loading disabled. Using dummy values for: {model_name}")
     return models_and_tokenizers
 
 
@@ -109,7 +114,8 @@ def generate_and_compute_metrics(
         prompt: str,
         max_tokens: int,
         step_size: int,
-        model_name: str
+        model_name: str,
+        disable_gen: bool = False
 ) -> List[Dict[str, Any]]:
     global generation_cache, cache_writes, model_seeds
 
@@ -120,6 +126,11 @@ def generate_and_compute_metrics(
         logger.info(f"Using cached result for prompt: {prompt[:30]}...")
         model_seeds[model_name] += 1
         return generation_cache[key]
+
+    if disable_gen:
+        raise ValueError("Generation is disabled and no cached result found for the prompt.")
+
+
 
     metrics = []
     input_ids = tokenizer.encode(prompt, return_tensors="pt")
@@ -302,7 +313,7 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
     width, height = 500, 300  # Increased resolution for 1x1 pixels
     heatmap = np.ones((height, width, 3), dtype=np.float32)  # Start with white
 
-    colors = [(0.5, 0.5, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0, 0.5), (0, 0.5, 0.5)]
+    colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0.5, 0),(0.5, 0, 0.5), (0, 0.5, 0.5)]
 
     # Set fixed ranges for X and Y axes
     x_range = (0, 4)
@@ -339,6 +350,11 @@ def update_heatmap(metrics_by_model: Dict[str, List[Dict[str, float]]], fig, ax)
 
             # Combine with existing heatmap
             heatmap *= color_layer
+
+            color_layer = np.ones((height, width, 3), dtype=np.float32)
+            color_layer[:,:,0] = 1 - intensity.T
+            color_layer[:,:,1] = 1 - intensity.T
+            color_layer[:,:,2] = 1 - intensity.T
 
             # Save individual heatmap for this model
             fig_model, ax_model = plt.subplots(figsize=(12, 8))
@@ -396,7 +412,7 @@ def main(args=None):
     load_cache()
 
 
-    models_and_tokenizers = load_models_and_tokenizers(model_names, args.cache_dir)
+    models_and_tokenizers = load_models_and_tokenizers(model_names, args.cache_dir, args.disable_gen)
 
     prompts = read_prompts(args.prompts_file)
 
@@ -413,7 +429,8 @@ def main(args=None):
             for prompt in tqdm(batch_prompts, desc=f"Generating with {model_name}"):
                 metrics = generate_and_compute_metrics(
                     model_name=model_name, model=model, tokenizer=tokenizer, prompt=prompt, step_size=args.step_size,
-                    max_tokens=args.max_tokens
+                    max_tokens=args.max_tokens,
+                    disable_gen=args.disable_gen
                 )
                 metrics_by_model[model_name].extend(metrics)
 
